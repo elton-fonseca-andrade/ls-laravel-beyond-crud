@@ -8,6 +8,7 @@ use App\Admin\Inquiries\Resources\InquiryResource;
 use Carbon\Carbon;
 use Domain\Inquiries\Actions\CreateInquiryAction;
 use Domain\Inquiries\DataTransferObjects\InquiryData;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class InquiriesController
@@ -17,7 +18,7 @@ class InquiriesController
         return InquiryResource::collection($query->get());
     }
 
-    public function store(InquiryRequest $request, CreateInquiryAction $action): InquiryResource
+    public function store(InquiryRequest $request, CreateInquiryAction $action): JsonResponse
     {
         $data = new InquiryData(
             name: $request->validated('name'),
@@ -30,6 +31,8 @@ class InquiriesController
 
         $inquiry = $action->execute($data);
 
-        return new InquiryResource($inquiry);
+        return (new InquiryResource($inquiry))
+            ->response()
+            ->setStatusCode(201);
     }
 }
