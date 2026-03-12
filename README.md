@@ -1,59 +1,374 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Beyond CRUD — Mental Health Care App
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A domain-oriented Laravel application built following the architecture patterns from **"Laravel Beyond CRUD"** by Spatie. This project implements a mental health care system with two domains: **Inquiries** and **Patients**.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Setup
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### Requirements
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- Docker & Docker Compose
+- [Laravel Sail](https://laravel.com/docs/sail)
 
-## Learning Laravel
+### Installation
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+```bash
+# Clone the repository
+git clone <repo-url> beyond-crud
+cd beyond-crud
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+# Install PHP dependencies
+docker run --rm \
+    -u "$(id -u):$(id -g)" \
+    -v "$(pwd):/var/www/html" \
+    -w /var/www/html \
+    laravelsail/php85-composer:latest \
+    composer install --ignore-platform-reqs
 
-## Laravel Sponsors
+# Copy environment file and generate app key
+cp .env.example .env
+vendor/bin/sail up -d
+vendor/bin/sail artisan key:generate
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+# Run migrations and seed test data
+vendor/bin/sail artisan migrate --seed
+```
 
-### Premium Partners
+### Running the Application
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```bash
+# Start all services
+vendor/bin/sail up -d
 
-## Contributing
+# Stop all services
+vendor/bin/sail stop
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Running Tests
 
-## Code of Conduct
+```bash
+# Run all tests
+vendor/bin/sail artisan test --compact
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+# Run a specific test file
+vendor/bin/sail artisan test tests/Domain/Inquiries/Actions/AdmitInquiryActionTest.php
 
-## Security Vulnerabilities
+# Filter by test name
+vendor/bin/sail artisan test --filter=test_it_admits_a_pending_inquiry
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### Code Style
 
-## License
+```bash
+# Fix formatting on changed files
+vendor/bin/sail bin pint --dirty
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+---
+
+## API Endpoints
+
+All endpoints return JSON. Base URL: `http://localhost`.
+
+### List Inquiries
+
+```
+GET /api/admin/inquiries
+```
+
+**Query parameters:**
+
+| Parameter               | Type   | Description                        |
+|-------------------------|--------|------------------------------------|
+| `filter[state]`         | string | Exact state class name             |
+| `filter[name]`          | string | Partial match on name              |
+| `filter[created_after]` | date   | Inquiries created after this date  |
+| `filter[created_before]`| date   | Inquiries created before this date |
+| `sort`                  | string | `name`, `-name`, `created_at`, `-created_at` |
+
+**Example:**
+
+```bash
+curl "http://localhost/api/admin/inquiries?filter[name]=Ana&sort=-created_at"
+```
+
+### Create Inquiry
+
+```
+POST /api/admin/inquiries
+Content-Type: application/json
+```
+
+**Body:**
+
+| Field          | Type   | Required | Rules              |
+|----------------|--------|----------|--------------------|
+| `name`         | string | yes      | max 255            |
+| `email`        | string | yes      | valid email        |
+| `phone`        | string | yes      | max 50             |
+| `date_of_birth`| date   | yes      | must be before today |
+| `reason`       | string | yes      |                    |
+| `notes`        | string | no       |                    |
+
+**Example:**
+
+```bash
+curl -X POST http://localhost/api/admin/inquiries \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Maria Silva",
+    "email": "maria@example.com",
+    "phone": "+55-11-99999-0000",
+    "date_of_birth": "1990-05-15",
+    "reason": "Anxiety management"
+  }'
+```
+
+### Admit Inquiry
+
+Transitions an inquiry from **Pending** to **Admitted** and creates a Patient record.
+
+```
+POST /api/admin/inquiries/{id}/admit
+```
+
+**Example:**
+
+```bash
+curl -X POST http://localhost/api/admin/inquiries/1/admit
+```
+
+### Patient Report
+
+Returns a report of patients admitted within a date range.
+
+```
+GET /api/admin/patients
+```
+
+**Query parameters:**
+
+| Parameter | Type | Default               |
+|-----------|------|-----------------------|
+| `start`   | date | Start of current year |
+| `end`     | date | End of current year   |
+
+**Example:**
+
+```bash
+curl "http://localhost/api/admin/patients?start=2025-01-01&end=2026-12-31"
+```
+
+### Console Command
+
+```bash
+vendor/bin/sail artisan patients:report --from=2025-01-01 --to=2026-12-31
+```
+
+---
+
+## Architecture — Source Code Map
+
+This project follows a **Domain-Oriented Laravel** architecture with three layers:
+
+- **Domain** — Pure business logic, no framework dependencies.
+- **Application** — Consumes the domain. Controllers, jobs, view models.
+- **Support** — Generic reusable utilities (currently empty).
+
+### Domain Models
+
+Thin Eloquent models. Relations, casts, and overrides only — no business logic.
+
+```
+src/Domain/Inquiries/Models/Inquiry.php
+src/Domain/Patients/Models/Patient.php
+```
+
+### States & Transitions
+
+State pattern using `spatie/laravel-model-states`. Each state is a class with behavior methods (`colour()`, `canTransition()`). Transitions handle the state change and side effects.
+
+```
+src/Domain/Inquiries/States/
+├── InquiryState.php                        # Abstract base, defines allowed transitions
+├── PendingInquiryState.php                 # orange, can transition
+├── AdmittedInquiryState.php                # green, terminal
+├── RejectedInquiryState.php                # red, terminal
+└── Transitions/
+    ├── PendingToAdmittedTransition.php     # Changes state to Admitted
+    └── PendingToRejectedTransition.php     # Changes state, saves rejection reason
+```
+
+### Actions
+
+Single-responsibility classes with an `execute()` method. Actions compose other actions via constructor injection.
+
+```
+src/Domain/Inquiries/Actions/
+├── CreateInquiryAction.php                 # Receives InquiryData DTO, creates Inquiry
+├── AdmitInquiryAction.php                  # Runs transition, calls CreatePatientAction, dispatches event
+└── RejectInquiryAction.php                 # Runs transition, saves rejection reason
+
+src/Domain/Patients/Actions/
+├── CreatePatientAction.php                 # Receives PatientData DTO, creates Patient
+└── GeneratePatientReportAction.php         # Date range query, returns PatientReportData DTO
+```
+
+### Data Transfer Objects (DTOs)
+
+Typed, readonly classes that structure data entering the domain. No logic inside.
+
+```
+src/Domain/Inquiries/DataTransferObjects/InquiryData.php
+src/Domain/Patients/DataTransferObjects/PatientData.php
+src/Domain/Patients/DataTransferObjects/PatientReportData.php
+```
+
+### Custom Query Builders
+
+Replace Eloquent scopes. Each model overrides `newEloquentBuilder()` to return its custom builder.
+
+```
+src/Domain/Inquiries/QueryBuilders/InquiryQueryBuilder.php    # wherePending(), whereAdmitted(), whereCreatedBetween()
+src/Domain/Patients/QueryBuilders/PatientQueryBuilder.php      # whereAdmittedBetween(), whereDischarged(), whereActive()
+```
+
+### Custom Collections
+
+Replace inline collection chains. The Patient model overrides `newCollection()`.
+
+```
+src/Domain/Patients/Collections/PatientCollection.php          # activePatients(), dischargedPatients()
+```
+
+### Events & Listeners
+
+Events are plain classes dispatched from actions. Subscribers group related listeners.
+
+```
+src/Domain/Inquiries/Events/InquiryAdmittedEvent.php          # Carries Inquiry + Patient
+src/Domain/Inquiries/Listeners/InquirySubscriber.php           # Logs admission, registered in AppServiceProvider
+```
+
+### Exceptions
+
+Domain-specific exceptions with static factory methods.
+
+```
+src/Domain/Inquiries/Exceptions/InvalidInquiryTransitionException.php
+```
+
+### Controllers
+
+Thin controllers in the application layer. Receive request, build DTO, call action, return resource.
+
+```
+src/App/Admin/Inquiries/Controllers/
+├── InquiriesController.php                # index (list with filters), store (create)
+└── AdmitInquiryController.php             # __invoke (single-action controller)
+
+src/App/Admin/Patients/Controllers/
+└── PatientsController.php                 # index (report via ViewModel)
+```
+
+### Form Requests
+
+Validation lives in dedicated request classes, not in controllers.
+
+```
+src/App/Admin/Inquiries/Requests/InquiryRequest.php
+```
+
+### API Resources
+
+Map models to JSON responses.
+
+```
+src/App/Admin/Inquiries/Resources/InquiryResource.php
+src/App/Admin/Patients/Resources/PatientResource.php
+```
+
+### ViewModels
+
+Prepare data for views. Inject dependencies, call domain actions, expose computed properties.
+
+```
+src/App/Admin/Patients/ViewModels/PatientReportViewModel.php   # Implements Arrayable
+```
+
+### HTTP Query Builders
+
+Extend `Spatie\QueryBuilder\QueryBuilder`. Define allowed filters, sorts, and defaults.
+
+```
+src/App/Admin/Inquiries/Queries/InquiryIndexQuery.php
+```
+
+### Jobs
+
+Queue infrastructure only. The `handle()` method sends notifications — no business logic.
+
+```
+src/App/Admin/Inquiries/Jobs/SendAdmissionNotificationJob.php
+```
+
+### Console Commands
+
+Same domain actions reused from the CLI.
+
+```
+src/App/Console/Commands/GeneratePatientReportCommand.php
+```
+
+### Test Factories
+
+Custom immutable factories (not Laravel's default). Cloned on each state method call.
+
+```
+tests/Factories/InquiryFactory.php         # new()->create(), admitted(), rejected()
+tests/Factories/PatientFactory.php         # new()->create(), discharged(), admittedAt(), forInquiry()
+```
+
+---
+
+## Directory Structure
+
+```
+src/
+├── Domain/                         # Business logic
+│   ├── Inquiries/
+│   │   ├── Actions/
+│   │   ├── DataTransferObjects/
+│   │   ├── Events/
+│   │   ├── Exceptions/
+│   │   ├── Listeners/
+│   │   ├── Models/
+│   │   ├── QueryBuilders/
+│   │   └── States/
+│   │       └── Transitions/
+│   └── Patients/
+│       ├── Actions/
+│       ├── Collections/
+│       ├── DataTransferObjects/
+│       ├── Models/
+│       └── QueryBuilders/
+├── App/                            # Application layer
+│   ├── Admin/
+│   │   ├── Inquiries/
+│   │   │   ├── Controllers/
+│   │   │   ├── Jobs/
+│   │   │   ├── Queries/
+│   │   │   ├── Requests/
+│   │   │   └── Resources/
+│   │   └── Patients/
+│   │       ├── Controllers/
+│   │       ├── Resources/
+│   │       └── ViewModels/
+│   ├── Console/
+│   │   └── Commands/
+│   ├── Http/Controllers/
+│   ├── Models/
+│   └── Providers/
+└── Support/                        # Reusable utilities (empty)
+```
