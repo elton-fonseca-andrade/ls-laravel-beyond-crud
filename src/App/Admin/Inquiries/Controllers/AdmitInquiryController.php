@@ -2,16 +2,19 @@
 
 namespace App\Admin\Inquiries\Controllers;
 
-use App\Admin\Inquiries\Resources\InquiryResource;
 use Domain\Inquiries\Actions\AdmitInquiryAction;
+use Domain\Inquiries\DataTransferObjects\InquiryData;
 use Domain\Inquiries\Models\Inquiry;
+use Illuminate\Http\JsonResponse;
 
 class AdmitInquiryController
 {
-    public function __invoke(Inquiry $inquiry, AdmitInquiryAction $action): InquiryResource
+    public function __invoke(Inquiry $inquiry, AdmitInquiryAction $action): JsonResponse
     {
         $inquiry = $action->execute($inquiry);
 
-        return new InquiryResource($inquiry);
+        return response()->json([
+            'data' => InquiryData::from($inquiry),
+        ]);
     }
 }

@@ -3,36 +3,25 @@
 namespace App\Admin\Inquiries\Controllers;
 
 use App\Admin\Inquiries\Queries\InquiryIndexQuery;
-use App\Admin\Inquiries\Requests\InquiryRequest;
-use App\Admin\Inquiries\Resources\InquiryResource;
-use Carbon\Carbon;
 use Domain\Inquiries\Actions\CreateInquiryAction;
 use Domain\Inquiries\DataTransferObjects\InquiryData;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Spatie\LaravelData\DataCollection;
 
 class InquiriesController
 {
-    public function index(InquiryIndexQuery $query): AnonymousResourceCollection
+    public function index(InquiryIndexQuery $query): DataCollection
     {
-        return InquiryResource::collection($query->get());
+        return InquiryData::collect($query->get(), DataCollection::class)
+            ->wrap('data');
     }
 
-    public function store(InquiryRequest $request, CreateInquiryAction $action): JsonResponse
+    public function store(InquiryData $data, CreateInquiryAction $action): JsonResponse
     {
-        $data = new InquiryData(
-            name: $request->validated('name'),
-            email: $request->validated('email'),
-            phone: $request->validated('phone'),
-            date_of_birth: Carbon::make($request->validated('date_of_birth')),
-            reason: $request->validated('reason'),
-            notes: $request->validated('notes'),
-        );
-
         $inquiry = $action->execute($data);
 
-        return (new InquiryResource($inquiry))
-            ->response()
-            ->setStatusCode(201);
+        return InquiryData::from($inquiry)
+            ->wrap('data')
+            ->toResponse(request());
     }
 }
